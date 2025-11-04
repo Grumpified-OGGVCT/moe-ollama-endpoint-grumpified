@@ -59,11 +59,11 @@ class MoERouter:
     """Mixture of Experts router using DSPy with backup strategy."""
     
     # Routing keyword configurations
-    CODE_KEYWORDS = ["code", "function", "class", "programming", "debug", "implement", 
+    CODE_KEYWORDS = ["code", "class", "programming", "debug", "implement", 
                      "script", "bug", "error", "compile", "syntax", "refactor", "test"]
     SIMPLE_CODE_KEYWORDS = ["simple", "basic", "quick", "small"]
     MATH_TOOL_KEYWORDS = ["math", "calculate", "equation", "solve", "tool", "function call",
-                          "agent", "autonomous", "workflow", "integrate", "api"]
+                          "agent", "autonomous", "workflow", "integrate", "api", "invoke"]
     REASONING_KEYWORDS = ["analyze", "reasoning", "why", "complex", "detailed", "explain in depth",
                          "comprehensive", "thorough", "trace", "step-by-step", "think"]
     ENTERPRISE_KEYWORDS = ["enterprise", "production", "critical", "important", "detailed analysis"]
