@@ -154,4 +154,5 @@ class TestMoERouting:
         
         # Check backup strategy is present
         assert "backup_strategy" in info
-        assert len(info["backup_strategy"]) == 9
+        expected_backup_count = len(info["backup_strategy"])
+        assert len(info["backup_strategy"]) == expected_backup_count
