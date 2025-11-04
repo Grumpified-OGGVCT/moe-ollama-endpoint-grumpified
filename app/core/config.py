@@ -23,11 +23,22 @@ class Settings(BaseSettings):
     app_port: int = 8000
     log_level: str = "INFO"
     
-    # MoE Configuration
-    default_model: str = "llama3.1:8b"
-    vision_model: str = "llava:13b"
-    code_model: str = "codellama:13b"
-    reasoning_model: str = "llama3.1:70b"
+    # MoE Configuration - Ollama Cloud Models (Nov 4, 2025)
+    # Text Models
+    reasoning_model: str = "deepseek-v3.1:671b-cloud"  # Complex reasoning with thinking mode
+    fallback_model: str = "gpt-oss:20b-cloud"  # Low-latency fallback
+    enterprise_model: str = "gpt-oss:120b-cloud"  # Deep multi-turn reasoning
+    math_tool_model: str = "kimi-k2:1t-cloud"  # Math/tool-calling/agentic
+    code_model: str = "qwen3-coder:480b-cloud"  # Code generation/debugging
+    aggregator_model: str = "glm-4.6:cloud"  # Aggregation with tool-use
+    cost_code_model: str = "minimax-m2:cloud"  # Cost-effective coding
+    
+    # Vision Models
+    vision_model: str = "qwen3-vl:235b-cloud"  # Visual agent for GUI/multimodal
+    vision_thinking_model: str = "qwen3-vl:235b-instruct-cloud"  # Multimodal reasoning with thinking
+    
+    # Legacy/Compatibility
+    default_model: str = "gpt-oss:20b-cloud"  # Default fallback for generic queries
     
     # RAG Configuration
     embedding_model: str = "nomic-embed-text"

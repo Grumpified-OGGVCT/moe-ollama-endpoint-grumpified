@@ -27,19 +27,28 @@ A production-grade OpenAI-compatible endpoint orchestrating Ollama Cloud models 
 └──────┬──────────────────────────┘
        │
        ▼
-┌─────────────────────────────────┐
-│      DSPy Router (MoE)          │
-│  ┌─────────────────────────┐   │
-│  │ - General: llama3.1:8b  │   │
-│  │ - Code: codellama:13b   │   │
-│  │ - Reasoning: llama3.1:70b│  │
-│  │ - Vision: llava:13b     │   │
-│  └─────────────────────────┘   │
-└──────┬──────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│      DSPy Router (MoE) - Ollama Cloud Models        │
+│  ┌───────────────────────────────────────────────┐  │
+│  │ Text Models (7):                              │  │
+│  │ - Reasoning: deepseek-v3.1:671b-cloud        │  │
+│  │ - Fallback: gpt-oss:20b-cloud                │  │
+│  │ - Enterprise: gpt-oss:120b-cloud             │  │
+│  │ - Math/Tool: kimi-k2:1t-cloud                │  │
+│  │ - Code: qwen3-coder:480b-cloud               │  │
+│  │ - Aggregator: glm-4.6:cloud                  │  │
+│  │ - Cost-Code: minimax-m2:cloud                │  │
+│  │                                               │  │
+│  │ Vision Models (2):                            │  │
+│  │ - Vision: qwen3-vl:235b-cloud                │  │
+│  │ - Vision+Thinking: qwen3-vl:235b-instruct    │  │
+│  └───────────────────────────────────────────────┘  │
+└──────┬──────────────────────────────────────────────┘
        │
        ▼
 ┌─────────────────────────────────┐
 │     Ollama Cloud Models         │
+│  (MoE architecture with backup) │
 └─────────────────────────────────┘
 
 ┌─────────────────────────────────┐
@@ -215,10 +224,16 @@ All configuration is done via environment variables in `.env`:
 | `POSTGRES_USER` | PostgreSQL user | `moe_user` |
 | `POSTGRES_PASSWORD` | PostgreSQL password | `moe_password` |
 | `POSTGRES_DB` | PostgreSQL database | `moe_rag` |
-| `DEFAULT_MODEL` | Default model for general queries | `llama3.1:8b` |
-| `VISION_MODEL` | Model for vision tasks | `llava:13b` |
-| `CODE_MODEL` | Model for code tasks | `codellama:13b` |
-| `REASONING_MODEL` | Model for complex reasoning | `llama3.1:70b` |
+| `REASONING_MODEL` | Complex reasoning with thinking mode | `deepseek-v3.1:671b-cloud` |
+| `FALLBACK_MODEL` | Low-latency fallback model | `gpt-oss:20b-cloud` |
+| `ENTERPRISE_MODEL` | Deep multi-turn reasoning | `gpt-oss:120b-cloud` |
+| `MATH_TOOL_MODEL` | Math/tool-calling/agentic | `kimi-k2:1t-cloud` |
+| `CODE_MODEL` | Code generation/debugging | `qwen3-coder:480b-cloud` |
+| `AGGREGATOR_MODEL` | Aggregation with tool-use | `glm-4.6:cloud` |
+| `COST_CODE_MODEL` | Cost-effective coding | `minimax-m2:cloud` |
+| `VISION_MODEL` | Visual agent for GUI/multimodal | `qwen3-vl:235b-cloud` |
+| `VISION_THINKING_MODEL` | Multimodal reasoning with thinking | `qwen3-vl:235b-instruct-cloud` |
+| `DEFAULT_MODEL` | Default model for generic queries | `gpt-oss:20b-cloud` |
 | `EMBEDDING_MODEL` | Model for embeddings | `nomic-embed-text` |
 
 ## API Endpoints
@@ -246,13 +261,54 @@ All configuration is done via environment variables in `.env`:
 
 ## MoE Routing Strategy
 
-The DSPy-based router intelligently selects models based on:
+The DSPy-based router intelligently selects from 9 Ollama Cloud models based on task requirements, with automatic backup strategy for resilience:
 
-1. **Vision Detection**: Automatically routes to vision model if images are present
-2. **Code Keywords**: Routes to code model for programming-related queries
-3. **Reasoning Keywords**: Routes to reasoning model for complex analysis
-4. **RAG Keywords**: Enables RAG for retrieval-based queries
-5. **Default**: Falls back to general-purpose model
+### Model Selection Priority
+
+1. **Vision Detection**: 
+   - Complex visual reasoning → `qwen3-vl:235b-instruct-cloud` (thinking mode)
+   - GUI/visual tasks → `qwen3-vl:235b-cloud`
+   
+2. **Code Tasks**: 
+   - Advanced code generation/debugging → `qwen3-coder:480b-cloud` (262K context)
+   - Simple/cost-effective coding → `minimax-m2:cloud`
+   
+3. **Math/Tool/Agentic**: → `kimi-k2:1t-cloud` (1T params, 32B active)
+
+4. **Complex Reasoning**: → `deepseek-v3.1:671b-cloud` (hybrid thinking mode)
+
+5. **Enterprise Deep Reasoning**: → `gpt-oss:120b-cloud` (production-grade)
+
+6. **Aggregation Tasks**: → `glm-4.6:cloud` (synthesis with tool-use)
+
+7. **RAG Queries**: → `gpt-oss:20b-cloud` with RAG enabled
+
+8. **Default/Generic**: → `gpt-oss:20b-cloud` (low-latency)
+
+### Backup Strategy
+
+Each model has configured fallback chains for resilience:
+
+| Primary Model | First Backup | Second Backup | Use Case |
+|---------------|--------------|---------------|----------|
+| deepseek-v3.1:671b-cloud | gpt-oss:120b-cloud | gpt-oss:20b-cloud | Complex reasoning |
+| gpt-oss:20b-cloud | gpt-oss:120b-cloud | - | Low-latency fallback |
+| gpt-oss:120b-cloud | deepseek-v3.1:671b-cloud | gpt-oss:20b-cloud | Enterprise reasoning |
+| kimi-k2:1t-cloud | glm-4.6:cloud | gpt-oss:120b-cloud | Math/tool-calling |
+| qwen3-coder:480b-cloud | minimax-m2:cloud | gpt-oss:20b-cloud | Code generation |
+| glm-4.6:cloud | deepseek-v3.1:671b-cloud | gpt-oss:120b-cloud | Aggregation |
+| minimax-m2:cloud | gpt-oss:20b-cloud | - | Cost-effective coding |
+| qwen3-vl:235b-cloud | qwen3-vl:235b-instruct-cloud | gpt-oss:20b-cloud* | Vision tasks |
+| qwen3-vl:235b-instruct-cloud | qwen3-vl:235b-cloud | gpt-oss:20b-cloud* | Vision+reasoning |
+
+*Note: Text-only fallback strips images from requests
+
+### Model Capabilities
+
+- **All models**: Tool calling, structured outputs (JSON), streaming, thinking mode support
+- **Vision models**: Base64 image handling, video understanding (up to 2 hours), spatial grounding
+- **MoE efficiency**: Sparse activation (10-37B active params) for cost-effective inference
+- **Context lengths**: Up to 262K tokens (Qwen models) for long-form tasks
 
 Keywords are configurable in `app/services/router.py`.
 
