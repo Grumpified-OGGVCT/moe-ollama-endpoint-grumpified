@@ -19,4 +19,4 @@ class Document(Base):
     doc_metadata = Column(JSON, default={})  # Renamed from 'metadata' to avoid conflict
     collection = Column(String(255), index=True, default="default")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
