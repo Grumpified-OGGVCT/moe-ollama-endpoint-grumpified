@@ -56,6 +56,16 @@ class Settings(BaseSettings):
     retry_backoff_factor: float = 2.0  # Exponential backoff multiplier
     retry_initial_delay: float = 0.1  # Initial retry delay in seconds
     
+    # Dynamic Expert Expansion Configuration
+    initial_expert_count: int = 2  # Start with k=2 experts
+    max_expert_count: int = 9  # Maximum experts to consult
+    coverage_threshold: float = 0.75  # Quality threshold to stop expanding (0-1)
+    enable_dynamic_expansion: bool = True  # Enable dynamic k-value adjustment
+    confidence_keywords: list = [
+        "not sure", "maybe", "perhaps", "uncertain", "unclear",
+        "don't know", "can't say", "unsure", "might be", "could be"
+    ]  # Trigger phrases for low confidence detection
+    
     @property
     def database_url(self) -> str:
         """Construct PostgreSQL database URL."""

@@ -223,3 +223,83 @@ class TestMoERouting:
         # Record success
         moe_router.record_success(model)
         assert model not in moe_router.failure_counts
+    
+    def test_get_all_expert_models(self):
+        """Test getting all expert models."""
+        all_models = moe_router.get_all_expert_models()
+        
+        # Should have all 9 models
+        assert len(all_models) == 9
+        assert "deepseek-v3.1:671b-cloud" in all_models
+        assert "qwen3-coder:480b-cloud" in all_models
+        assert "qwen3-vl:235b-cloud" in all_models
+    
+    @pytest.mark.asyncio
+    async def test_select_experts_for_query(self):
+        """Test expert selection for a query."""
+        messages = [{"role": "user", "content": "Write a Python function"}]
+        
+        # Select 2 experts (default)
+        experts = await moe_router.select_experts_for_query(messages, k=2)
+        assert len(experts) == 2
+        # Should get 2 valid models (routing may vary)
+        assert all(expert in moe_router.get_all_expert_models() for expert in experts)
+    
+    @pytest.mark.asyncio
+    async def test_select_experts_expansion(self):
+        """Test expert selection with k expansion."""
+        messages = [{"role": "user", "content": "Explain quantum computing"}]
+        
+        # Select 5 experts
+        experts = await moe_router.select_experts_for_query(messages, k=5)
+        assert len(experts) == 5
+        assert len(set(experts)) == len(experts)  # No duplicates
+    
+    def test_calculate_coverage_score_high_quality(self):
+        """Test coverage score calculation for high quality responses."""
+        responses = [
+            "This is a comprehensive answer with detailed explanation of the topic.",
+            "Here's another thorough response providing additional context and examples.",
+        ]
+        
+        score = moe_router.calculate_coverage_score(responses)
+        assert score > 0.6  # Should be reasonably high
+    
+    def test_calculate_coverage_score_low_confidence(self):
+        """Test coverage score with low confidence phrases."""
+        responses = [
+            "I'm not sure about this, maybe it could be related to X.",
+            "Perhaps this is correct, but I'm uncertain.",
+        ]
+        
+        score = moe_router.calculate_coverage_score(responses)
+        assert score < 0.5  # Should be lower due to uncertainty
+    
+    def test_calculate_coverage_score_short_responses(self):
+        """Test coverage score with very short responses."""
+        responses = ["Yes.", "No.", "Maybe."]
+        
+        score = moe_router.calculate_coverage_score(responses)
+        assert score < 0.7  # Should be penalized for brevity
+    
+    def test_aggregate_expert_responses(self):
+        """Test aggregation of multiple expert responses."""
+        expert_responses = {
+            "deepseek-v3.1:671b-cloud": "Expert 1 says this is correct.",
+            "gpt-oss:120b-cloud": "Expert 2 provides additional context.",
+        }
+        
+        aggregated = moe_router.aggregate_expert_responses(expert_responses)
+        
+        # Should contain both responses
+        assert "Expert 1" in aggregated or "this is correct" in aggregated
+        assert len(aggregated) > 0
+    
+    def test_aggregate_single_response(self):
+        """Test aggregation of single expert response."""
+        expert_responses = {
+            "qwen3-coder:480b-cloud": "Here's the code implementation.",
+        }
+        
+        aggregated = moe_router.aggregate_expert_responses(expert_responses)
+        assert aggregated == "Here's the code implementation."

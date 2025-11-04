@@ -1,9 +1,10 @@
 """DSPy-based routing service for Mixture of Experts."""
 import dspy
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 from app.core.config import settings
 from app.services.ollama_client import ollama_service
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -321,6 +322,162 @@ class MoERouter:
         
         logger.warning("Stripped images from messages for text-only fallback")
         return cleaned_messages
+    
+    def get_all_expert_models(self) -> List[str]:
+        """
+        Get list of all available expert models.
+        
+        Returns:
+            List of all model names
+        """
+        return [
+            self.reasoning_model,
+            self.fallback_model,
+            self.enterprise_model,
+            self.math_tool_model,
+            self.code_model,
+            self.aggregator_model,
+            self.cost_code_model,
+            self.vision_model,
+            self.vision_thinking_model,
+        ]
+    
+    async def select_experts_for_query(
+        self, 
+        messages: List[Dict[str, Any]], 
+        k: int = None
+    ) -> List[str]:
+        """
+        Select top k experts for a query based on relevance.
+        
+        Args:
+            messages: The conversation messages
+            k: Number of experts to select (uses config default if None)
+            
+        Returns:
+            List of k expert model names
+        """
+        if k is None:
+            k = settings.initial_expert_count
+        
+        # Get primary expert based on routing
+        primary_expert, _ = await self.route_request(messages, use_rag=False)
+        
+        # Get available (non-quarantined) model
+        primary_expert = self.get_available_model(primary_expert)
+        
+        experts = [primary_expert]
+        
+        # Add backups and complementary experts
+        if k > 1:
+            # Get backups for primary
+            backups = self.get_backup_models(primary_expert)
+            for backup in backups:
+                if len(experts) >= k:
+                    break
+                if not self.is_quarantined(backup) and backup not in experts:
+                    experts.append(backup)
+            
+            # Fill remaining slots with other available models
+            if len(experts) < k:
+                all_models = self.get_all_expert_models()
+                for model in all_models:
+                    if len(experts) >= k:
+                        break
+                    if not self.is_quarantined(model) and model not in experts:
+                        experts.append(model)
+        
+        logger.info(f"Selected {len(experts)} experts: {experts}")
+        return experts[:k]
+    
+    def calculate_coverage_score(self, responses: List[str]) -> float:
+        """
+        Calculate coverage/quality score for expert responses.
+        
+        Args:
+            responses: List of response texts from experts
+            
+        Returns:
+            Score between 0-1 (higher = better coverage)
+        """
+        if not responses:
+            return 0.0
+        
+        score = 1.0
+        
+        # Check for low-confidence phrases
+        low_confidence_count = 0
+        for response in responses:
+            response_lower = response.lower()
+            for keyword in settings.confidence_keywords:
+                if keyword in response_lower:
+                    low_confidence_count += 1
+                    break
+        
+        # Reduce score based on low-confidence responses
+        confidence_penalty = (low_confidence_count / len(responses)) * 0.4
+        score -= confidence_penalty
+        
+        # Check response length (very short responses indicate incompleteness)
+        avg_length = sum(len(r) for r in responses) / len(responses)
+        if avg_length < 50:
+            score -= 0.3
+        elif avg_length < 150:
+            score -= 0.15
+        
+        # Check for response diversity (overlapping content)
+        if len(responses) > 1:
+            unique_words = set()
+            total_words = 0
+            for response in responses:
+                words = set(response.lower().split())
+                unique_words.update(words)
+                total_words += len(words)
+            
+            if total_words > 0:
+                diversity = len(unique_words) / total_words
+                # Low diversity means redundant responses
+                if diversity < 0.3:
+                    score -= 0.2
+        
+        return max(0.0, min(1.0, score))
+    
+    def aggregate_expert_responses(
+        self, 
+        expert_responses: Dict[str, str]
+    ) -> str:
+        """
+        Aggregate multiple expert responses into a single response.
+        
+        Args:
+            expert_responses: Dict mapping model names to their responses
+            
+        Returns:
+            Aggregated response text
+        """
+        if not expert_responses:
+            return ""
+        
+        if len(expert_responses) == 1:
+            return list(expert_responses.values())[0]
+        
+        # Simple aggregation: combine responses with attribution
+        aggregated = []
+        
+        for i, (model, response) in enumerate(expert_responses.items(), 1):
+            # Add response with minimal attribution
+            if len(expert_responses) > 2:
+                aggregated.append(f"{response}")
+            else:
+                aggregated.append(response)
+        
+        # If we have multiple responses, add a synthesis intro
+        if len(expert_responses) > 1:
+            result = "\n\n".join(aggregated)
+        else:
+            result = aggregated[0]
+        
+        return result
 
 
 # Global router instance
