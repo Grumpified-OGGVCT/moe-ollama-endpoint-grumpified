@@ -6,7 +6,6 @@ from app.db.database import get_db_session
 from app.services.ollama_client import ollama_service
 from app.core.config import settings
 import logging
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
