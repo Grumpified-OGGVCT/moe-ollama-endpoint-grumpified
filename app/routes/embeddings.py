@@ -3,7 +3,6 @@ from fastapi import APIRouter, HTTPException
 from app.models.schemas import EmbeddingRequest, EmbeddingResponse, EmbeddingData, Usage
 from app.services.ollama_client import ollama_service
 from app.core.config import settings
-import time
 import logging
 
 logger = logging.getLogger(__name__)
