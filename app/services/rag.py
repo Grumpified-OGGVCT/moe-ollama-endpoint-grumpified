@@ -55,7 +55,7 @@ class RAGService:
                         db_doc = Document(
                             content=content,
                             embedding=embedding,
-                            metadata=metadata,
+                            doc_metadata=metadata,
                             collection=collection,
                         )
                         
@@ -107,7 +107,7 @@ class RAGService:
                 # Build query
                 stmt = select(
                     Document.content,
-                    Document.metadata,
+                    Document.doc_metadata,
                     Document.collection,
                     Document.embedding.cosine_distance(query_embedding).label("distance")
                 )
@@ -125,7 +125,7 @@ class RAGService:
                 for row in rows:
                     documents.append({
                         "content": row.content,
-                        "metadata": row.metadata,
+                        "metadata": row.doc_metadata,
                         "collection": row.collection,
                         "similarity_score": 1 - row.distance,  # Convert distance to similarity
                     })
