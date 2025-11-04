@@ -105,6 +105,17 @@ class MoERouter:
             # qwen3-vl:235b-instruct-cloud (vision+thinking)
             self.vision_thinking_model: [self.vision_model, self.fallback_model],
         }
+        
+        # Circuit breaker state: tracks failures per model
+        self.failure_counts: Dict[str, int] = {}
+        self.quarantined_models: set = set()
+        
+        # Failover configuration
+        self.max_latency_ms = settings.max_latency_ms
+        self.max_retries = settings.max_retries
+        self.circuit_breaker_threshold = settings.circuit_breaker_threshold
+        self.retry_backoff_factor = settings.retry_backoff_factor
+        self.retry_initial_delay = settings.retry_initial_delay
     
     async def route_request(
         self,
@@ -214,6 +225,102 @@ class MoERouter:
             "default": self.default_model,
             "backup_strategy": self.backup_chain.copy()
         }
+    
+    def record_failure(self, model: str) -> None:
+        """
+        Record a failure for a model and potentially quarantine it.
+        
+        Args:
+            model: The model that failed
+        """
+        self.failure_counts[model] = self.failure_counts.get(model, 0) + 1
+        
+        if self.failure_counts[model] >= self.circuit_breaker_threshold:
+            self.quarantined_models.add(model)
+            logger.warning(f"Model {model} quarantined after {self.failure_counts[model]} failures")
+    
+    def record_success(self, model: str) -> None:
+        """
+        Record a successful call and reset failure counter.
+        
+        Args:
+            model: The model that succeeded
+        """
+        if model in self.failure_counts:
+            del self.failure_counts[model]
+        if model in self.quarantined_models:
+            self.quarantined_models.remove(model)
+            logger.info(f"Model {model} removed from quarantine")
+    
+    def is_quarantined(self, model: str) -> bool:
+        """
+        Check if a model is currently quarantined.
+        
+        Args:
+            model: The model to check
+            
+        Returns:
+            True if model is quarantined
+        """
+        return model in self.quarantined_models
+    
+    def get_available_model(self, primary_model: str) -> str:
+        """
+        Get an available model, falling back through backup chain if needed.
+        
+        Args:
+            primary_model: The initially selected model
+            
+        Returns:
+            An available (non-quarantined) model
+        """
+        # Try primary first
+        if not self.is_quarantined(primary_model):
+            return primary_model
+        
+        logger.info(f"Primary model {primary_model} is quarantined, trying backups")
+        
+        # Try backups in order
+        backups = self.get_backup_models(primary_model)
+        for backup in backups:
+            if not self.is_quarantined(backup):
+                logger.info(f"Using backup model: {backup}")
+                return backup
+        
+        # Last resort: return fallback even if quarantined
+        logger.warning(f"All models quarantined, using fallback: {self.fallback_model}")
+        return self.fallback_model
+    
+    def strip_images_for_fallback(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Strip images from messages for graceful degradation to text-only models.
+        
+        Args:
+            messages: Original messages possibly containing images
+            
+        Returns:
+            Messages with images removed, text content preserved
+        """
+        cleaned_messages = []
+        
+        for msg in messages:
+            if isinstance(msg.get("content"), list):
+                # Multi-modal content - extract only text
+                text_parts = []
+                for item in msg["content"]:
+                    if isinstance(item, dict) and item.get("type") == "text":
+                        text_parts.append(item.get("text", ""))
+                
+                # Create text-only message
+                cleaned_msg = msg.copy()
+                cleaned_msg["content"] = " ".join(text_parts) if text_parts else ""
+                cleaned_messages.append(cleaned_msg)
+            else:
+                # Already text-only
+                cleaned_messages.append(msg)
+        
+        logger.warning("Stripped images from messages for text-only fallback")
+        return cleaned_messages
 
 
 # Global router instance

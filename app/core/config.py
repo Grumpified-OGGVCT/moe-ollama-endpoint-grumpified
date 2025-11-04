@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     dspy_cache_dir: str = ".dspy_cache"
     dspy_max_retries: int = 3
     
+    # Backup/Failover Configuration
+    max_latency_ms: int = 2000  # >2s triggers fallback
+    max_retries: int = 3  # Maximum retry attempts
+    circuit_breaker_threshold: int = 3  # Failures before quarantine
+    retry_backoff_factor: float = 2.0  # Exponential backoff multiplier
+    retry_initial_delay: float = 0.1  # Initial retry delay in seconds
+    
     @property
     def database_url(self) -> str:
         """Construct PostgreSQL database URL."""

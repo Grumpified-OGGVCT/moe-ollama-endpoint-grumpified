@@ -156,3 +156,70 @@ class TestMoERouting:
         assert "backup_strategy" in info
         expected_backup_count = len(info["backup_strategy"])
         assert expected_backup_count == 9  # Verify we have 9 models configured
+    
+    def test_circuit_breaker_quarantine(self):
+        """Test circuit breaker quarantine functionality."""
+        model = "deepseek-v3.1:671b-cloud"
+        
+        # Initially not quarantined
+        assert not moe_router.is_quarantined(model)
+        
+        # Record failures up to threshold
+        for _ in range(3):
+            moe_router.record_failure(model)
+        
+        # Should now be quarantined
+        assert moe_router.is_quarantined(model)
+        
+        # Reset for other tests
+        moe_router.record_success(model)
+        assert not moe_router.is_quarantined(model)
+    
+    def test_get_available_model_with_quarantine(self):
+        """Test getting available model when primary is quarantined."""
+        primary = "qwen3-coder:480b-cloud"
+        
+        # Quarantine primary
+        for _ in range(3):
+            moe_router.record_failure(primary)
+        
+        # Should return backup
+        available = moe_router.get_available_model(primary)
+        assert available != primary
+        assert available in ["minimax-m2:cloud", "gpt-oss:20b-cloud"]
+        
+        # Clean up
+        moe_router.record_success(primary)
+    
+    def test_strip_images_for_fallback(self):
+        """Test stripping images for text-only fallback."""
+        messages_with_images = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Describe this image"},
+                    {"type": "image_url", "image_url": {"url": "http://example.com/img.jpg"}}
+                ]
+            }
+        ]
+        
+        cleaned = moe_router.strip_images_for_fallback(messages_with_images)
+        
+        # Should have text content only
+        assert len(cleaned) == 1
+        assert cleaned[0]["role"] == "user"
+        assert isinstance(cleaned[0]["content"], str)
+        assert "Describe this image" in cleaned[0]["content"]
+    
+    def test_record_success_resets_failures(self):
+        """Test that recording success resets failure count."""
+        model = "gpt-oss:120b-cloud"
+        
+        # Record some failures
+        moe_router.record_failure(model)
+        moe_router.record_failure(model)
+        assert model in moe_router.failure_counts
+        
+        # Record success
+        moe_router.record_success(model)
+        assert model not in moe_router.failure_counts
