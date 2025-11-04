@@ -104,13 +104,17 @@ class RAGService:
             query_embedding = embeddings[0]
             
             async with get_db_session() as session:
-                # Build query
-                stmt = select(
-                    Document.content,
-                    Document.doc_metadata,
-                    Document.collection,
-                    Document.embedding.cosine_distance(query_embedding).label("distance")
-                )
+                # Build query with error handling for vector operations
+                try:
+                    stmt = select(
+                        Document.content,
+                        Document.doc_metadata,
+                        Document.collection,
+                        Document.embedding.cosine_distance(query_embedding).label("distance")
+                    )
+                except Exception as e:
+                    logger.error(f"Vector operation failed, pgvector may not be available: {e}")
+                    return []
                 
                 if collection:
                     stmt = stmt.where(Document.collection == collection)

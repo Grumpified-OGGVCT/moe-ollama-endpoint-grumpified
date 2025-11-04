@@ -18,8 +18,23 @@ class OllamaLM(dspy.LM):
         self.history = []
     
     def __call__(self, prompt: str, **kwargs) -> str:
-        """Synchronous call - not used in async context."""
-        raise NotImplementedError("Use async methods")
+        """
+        Synchronous call wrapper for compatibility.
+        Note: This is a simple wrapper. For production use with DSPy,
+        implement proper async handling or use DSPy's async capabilities.
+        """
+        import asyncio
+        try:
+            # Try to get or create event loop for sync context
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If loop is already running, we can't use run_until_complete
+                logger.warning("Cannot make sync call in async context, use acall instead")
+                return ""
+            return loop.run_until_complete(self.acall([{"role": "user", "content": prompt}], **kwargs))
+        except RuntimeError:
+            # No event loop available, create one
+            return asyncio.run(self.acall([{"role": "user", "content": prompt}], **kwargs))
     
     async def acall(self, messages: List[Dict[str, Any]], **kwargs) -> str:
         """Async call to Ollama."""
