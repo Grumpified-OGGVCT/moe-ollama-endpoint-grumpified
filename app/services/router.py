@@ -1,6 +1,6 @@
 """DSPy-based routing service for Mixture of Experts."""
 import dspy
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from app.core.config import settings
 from app.services.ollama_client import ollama_service
 import logging
