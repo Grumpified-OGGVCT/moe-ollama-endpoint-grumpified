@@ -1,7 +1,6 @@
 """RAG service for retrieval-augmented generation."""
 from typing import List, Dict, Any, Optional
 from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Document
 from app.db.database import get_db_session
 from app.services.ollama_client import ollama_service
