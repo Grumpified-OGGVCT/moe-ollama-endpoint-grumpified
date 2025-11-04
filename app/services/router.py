@@ -58,6 +58,18 @@ class RouterSignature(dspy.Signature):
 class MoERouter:
     """Mixture of Experts router using DSPy with backup strategy."""
     
+    # Routing keyword configurations
+    CODE_KEYWORDS = ["code", "function", "class", "programming", "debug", "implement", 
+                     "script", "bug", "error", "compile", "syntax", "refactor", "test"]
+    SIMPLE_CODE_KEYWORDS = ["simple", "basic", "quick", "small"]
+    MATH_TOOL_KEYWORDS = ["math", "calculate", "equation", "solve", "tool", "function call",
+                          "agent", "autonomous", "workflow", "integrate", "api"]
+    REASONING_KEYWORDS = ["analyze", "reasoning", "why", "complex", "detailed", "explain in depth",
+                         "comprehensive", "thorough", "trace", "step-by-step", "think"]
+    ENTERPRISE_KEYWORDS = ["enterprise", "production", "critical", "important", "detailed analysis"]
+    AGGREGATION_KEYWORDS = ["summarize", "combine", "aggregate", "synthesize", "merge", "consolidate"]
+    RAG_KEYWORDS = ["search", "find", "lookup", "retrieve", "document", "knowledge base"]
+    
     def __init__(self):
         """Initialize the MoE router with Ollama Cloud models."""
         # Primary models
@@ -129,10 +141,7 @@ class MoERouter:
         # Priority 1: Vision tasks (multimodal)
         if has_images:
             # Check if complex reasoning with images is needed
-            reasoning_keywords = ["analyze", "explain", "reasoning", "why", "complex", "detailed", "think", "step-by-step"]
-            math_keywords = ["math", "calculate", "equation", "solve", "proof", "formula"]
-            
-            if any(keyword in lower_message for keyword in reasoning_keywords + math_keywords):
+            if any(keyword in lower_message for keyword in self.REASONING_KEYWORDS + self.MATH_TOOL_KEYWORDS):
                 logger.info("Routing to vision+thinking model for multimodal reasoning")
                 return self.vision_thinking_model, False
             else:
@@ -140,12 +149,9 @@ class MoERouter:
                 return self.vision_model, False
         
         # Priority 2: Code generation/debugging
-        code_keywords = ["code", "function", "class", "programming", "debug", "implement", 
-                        "script", "bug", "error", "compile", "syntax", "refactor", "test"]
-        if any(keyword in lower_message for keyword in code_keywords):
+        if any(keyword in lower_message for keyword in self.CODE_KEYWORDS):
             # Check if cost-effective coding is suitable
-            simple_code_keywords = ["simple", "basic", "quick", "small"]
-            if any(keyword in lower_message for keyword in simple_code_keywords):
+            if any(keyword in lower_message for keyword in self.SIMPLE_CODE_KEYWORDS):
                 logger.info("Routing to cost-effective code model")
                 return self.cost_code_model, False
             else:
@@ -153,34 +159,27 @@ class MoERouter:
                 return self.code_model, False
         
         # Priority 3: Math/tool-calling/agentic workflows
-        math_tool_keywords = ["math", "calculate", "equation", "solve", "tool", "function call",
-                             "agent", "autonomous", "workflow", "integrate", "api"]
-        if any(keyword in lower_message for keyword in math_tool_keywords):
+        if any(keyword in lower_message for keyword in self.MATH_TOOL_KEYWORDS):
             logger.info("Routing to math/tool-calling model")
             return self.math_tool_model, use_rag
         
         # Priority 4: Complex reasoning (long-form, audit trails)
-        reasoning_keywords = ["analyze", "reasoning", "why", "complex", "detailed", "explain in depth",
-                            "comprehensive", "thorough", "trace", "step-by-step", "think"]
-        if any(keyword in lower_message for keyword in reasoning_keywords):
+        if any(keyword in lower_message for keyword in self.REASONING_KEYWORDS):
             logger.info("Routing to complex reasoning model")
             return self.reasoning_model, use_rag
         
         # Priority 5: Enterprise deep reasoning (multi-turn, production-grade)
-        enterprise_keywords = ["enterprise", "production", "critical", "important", "detailed analysis"]
-        if any(keyword in lower_message for keyword in enterprise_keywords):
+        if any(keyword in lower_message for keyword in self.ENTERPRISE_KEYWORDS):
             logger.info("Routing to enterprise model")
             return self.enterprise_model, use_rag
         
         # Priority 6: Aggregation tasks (multi-expert synthesis)
-        aggregation_keywords = ["summarize", "combine", "aggregate", "synthesize", "merge", "consolidate"]
-        if any(keyword in lower_message for keyword in aggregation_keywords):
+        if any(keyword in lower_message for keyword in self.AGGREGATION_KEYWORDS):
             logger.info("Routing to aggregator model")
             return self.aggregator_model, use_rag
         
         # Priority 7: RAG-related queries
-        rag_keywords = ["search", "find", "lookup", "retrieve", "document", "knowledge base"]
-        if any(keyword in lower_message for keyword in rag_keywords):
+        if any(keyword in lower_message for keyword in self.RAG_KEYWORDS):
             logger.info("Routing to fallback model with RAG enabled")
             return self.fallback_model, True
         
@@ -213,9 +212,7 @@ class MoERouter:
             "vision": self.vision_model,
             "vision_thinking": self.vision_thinking_model,
             "default": self.default_model,
-            "backup_strategy": {
-                model: backups for model, backups in self.backup_chain.items()
-            }
+            "backup_strategy": self.backup_chain.copy()
         }
 
 
