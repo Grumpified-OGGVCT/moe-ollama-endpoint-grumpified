@@ -41,7 +41,7 @@ A production-grade OpenAI-compatible endpoint orchestrating Ollama Cloud models 
 │  │                                               │  │
 │  │ Vision Models (2):                            │  │
 │  │ - Vision: qwen3-vl:235b-cloud                │  │
-│  │ - Vision+Thinking: qwen3-vl:235b-instruct-cloud    │  │
+│  │ - Vision+Thinking: qwen3-vl:235b-instruct-cloud │  │
 │  └───────────────────────────────────────────────┘  │
 └──────┬──────────────────────────────────────────────┘
        │
