@@ -140,7 +140,7 @@ class MoERouter:
         
         # Priority 1: Vision tasks (multimodal)
         if has_images:
-            # Check if complex reasoning with images is needed
+        code_keywords = ["code", "class", "programming", "debug", "implement", 
             if any(keyword in lower_message for keyword in self.REASONING_KEYWORDS + self.MATH_TOOL_KEYWORDS):
                 logger.info("Routing to vision+thinking model for multimodal reasoning")
                 return self.vision_thinking_model, False
