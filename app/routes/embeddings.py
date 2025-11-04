@@ -49,4 +49,7 @@ async def create_embeddings(request: EmbeddingRequest):
     
     except Exception as e:
         logger.error(f"Error creating embeddings: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while generating embeddings. Please try again later."
+        )

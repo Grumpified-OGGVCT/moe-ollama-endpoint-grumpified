@@ -55,7 +55,10 @@ async def list_models():
     
     except Exception as e:
         logger.error(f"Error listing models: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while listing models. Please try again later."
+        )
 
 
 @router.get("/models/{model_id}", response_model=ModelInfo)
@@ -81,4 +84,7 @@ async def get_model(model_id: str):
         raise
     except Exception as e:
         logger.error(f"Error getting model: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while retrieving model information. Please try again later."
+        )

@@ -25,7 +25,10 @@ async def ingest_documents(request: RAGIngestRequest):
     
     except Exception as e:
         logger.error(f"Error ingesting documents: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while ingesting documents. Please try again later."
+        )
 
 
 @router.get("/rag/search")
@@ -39,4 +42,7 @@ async def search_documents(query: str, collection: str = None, top_k: int = 5):
     
     except Exception as e:
         logger.error(f"Error searching documents: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while searching documents. Please try again later."
+        )

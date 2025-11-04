@@ -107,7 +107,11 @@ async def create_chat_completion(request: ChatCompletionRequest):
     
     except Exception as e:
         logger.error(f"Error in chat completion: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Don't expose internal error details to users
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while processing your request. Please try again later."
+        )
 
 
 async def stream_chat_completion(
@@ -166,5 +170,6 @@ async def stream_chat_completion(
                     continue
     except Exception as e:
         logger.error(f"Error in streaming: {e}")
-        error_data = {"error": str(e)}
+        # Don't expose internal error details
+        error_data = {"error": "An error occurred while streaming the response"}
         yield f"data: {json.dumps(error_data)}\n\n"
