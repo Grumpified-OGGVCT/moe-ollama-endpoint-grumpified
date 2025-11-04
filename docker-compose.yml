@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: moe-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-moe_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-moe_password}
+      POSTGRES_DB: ${POSTGRES_DB:-moe_rag}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-moe_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Containerfile
+    container_name: moe-ollama-endpoint
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-moe_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-moe_password}
+      POSTGRES_DB: ${POSTGRES_DB:-moe_rag}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEFAULT_MODEL: ${DEFAULT_MODEL:-llama3.1:8b}
+      VISION_MODEL: ${VISION_MODEL:-llava:13b}
+      CODE_MODEL: ${CODE_MODEL:-codellama:13b}
+      REASONING_MODEL: ${REASONING_MODEL:-llama3.1:70b}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

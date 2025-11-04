@@ -1,0 +1,50 @@
+[project]
+name = "moe-ollama-endpoint"
+version = "0.1.0"
+description = "Production-grade OpenAI-compatible endpoint orchestrating Ollama Cloud models as a MoE system with RAG, vision, and tool support"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "httpx>=0.25.0",
+    "ollama>=0.1.0",
+    "dspy-ai>=2.4.0",
+    "psycopg2-binary>=2.9.9",
+    "pgvector>=0.2.4",
+    "sqlalchemy>=2.0.23",
+    "asyncpg>=0.29.0",
+    "python-multipart>=0.0.6",
+    "pillow>=10.1.0",
+    "numpy>=1.26.0",
+    "tiktoken>=0.5.2",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.11.0",
+    "ruff>=0.1.6",
+    "mypy>=1.7.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_backend"
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
