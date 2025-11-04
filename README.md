@@ -399,13 +399,23 @@ PGPASSWORD=moe_password psql -h localhost -U moe_user -d moe_rag
 - Check documents are ingested: `GET /v1/rag/search?query=test`
 - Verify embedding model is available
 
+## Documentation
+
+Comprehensive documentation is available:
+
+- **[MODELS.md](MODELS.md)** - Detailed verification of the 9 Ollama Cloud models, capabilities, and use-case alignment
+- **[BACKUP_STRATEGY.md](BACKUP_STRATEGY.md)** - Backup chains, failover mechanisms, and resilience strategy
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment guide with Podman, CI/CD, monitoring, and operations
+- **[API.md](API.md)** - API reference and usage examples
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development setup and contribution guidelines
+
 ## License
 
 See [LICENSE](LICENSE) file.
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request.
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Acknowledgments
 
